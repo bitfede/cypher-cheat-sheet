@@ -268,7 +268,7 @@ CREATE (m:Movie:Action {title: 'Batman Begins'})
 RETURN m.title //optionally you can return
 ```
 
-## Creating multiple nodes
+### Creating multiple nodes
 
 ```
 CREATE
@@ -278,7 +278,7 @@ CREATE
 (:Person {name: 'Benjamin Melniker', born: 1913})
 ```
 
-## Adding labels to a node
+### Adding labels to a node
 
 ```
 SET nodeVariable:Label         // adding one label to node referenced by the variable x
@@ -294,7 +294,7 @@ SET m:Action
 RETURN labels(m)
 ```
 
-## Removing labels from a node
+#### Removing labels from a node
 
 ```
 REMOVE nodeVariable:Label    // remove the label from the node referenced by the variable x
@@ -307,7 +307,7 @@ REMOVE m:Action
 RETURN labels(m)
 ```
 
-## Adding properties to a node
+### Adding properties to a node
 
 ```
 SET nodeVariable.propertyName = value
@@ -324,7 +324,7 @@ However, if you specify `+=` when assigning to a property, the value at valueX i
 SET x += {propertyName1: value1, propertyName2: value2}
 ```
 
-## Removing properties from a node
+### Removing properties from a node
 
 ```
 REMOVE x.propertyName
@@ -334,7 +334,7 @@ or
 SET x.propertyName = null
 ```
 
-## Creating relationships
+### Creating relationships
 
 ```
 CREATE (x)-[:REL_TYPE]->(y)
@@ -360,7 +360,7 @@ CREATE (a)-[:ACTED_IN]->(m)<-[:PRODUCED]-(p)
 RETURN a, m, p
 ```
 
-## Adding properties to relationships
+### Adding properties to relationships
 
 ```
 SET r.propertyName = value
@@ -402,7 +402,7 @@ SET rel.roles = ['Bruce Wayne','Batman']
 RETURN a, rel, m
 ```
 
-## Removing properties from a relationship
+### Removing properties from a relationship
 
 ```
 MATCH (a:Person)-[rel:ACTED_IN]->(m:Movie)
@@ -411,7 +411,7 @@ REMOVE rel.roles
 RETURN a, rel, m
 ```
 
-## Deleting relationships
+### Deleting relationships
 
 ```
 MATCH (a:Person)-[rel:ACTED_IN]->(m:Movie)
@@ -420,7 +420,7 @@ DELETE rel
 RETURN a, m
 ```
 
-## Deleting nodes
+### Deleting nodes
 
 If you want to delete a node, delete its relationships first using `DETACH`.
 
@@ -437,7 +437,7 @@ WHERE p.name = 'Liam Neeson'
 DETACH DELETE  p
 ```
 
-## Using `MERGE` to create nodes
+### Using `MERGE` to create nodes
 
 ```
 MERGE (variable:Label{nodeProperties})
@@ -450,7 +450,7 @@ SET a.born = 1933
 RETURN a
 ```
 
-## Using `MERGE` to create relationships
+### Using `MERGE` to create relationships
 
 ```
 MERGE (variable:Label {nodeProperties})-[:REL_TYPE]->(otherNode)
@@ -464,7 +464,7 @@ MERGE (p)-[:ACTED_IN]->(m)
 RETURN p, m
 ```
 
-## Specifying creation behavior when merging
+### Specifying creation behavior when merging
 
 `ON CREATE` will specify instructions to execute if no existing node is found during the `MERGE` call and needs to be created. Example:
 ```
@@ -482,3 +482,84 @@ ON CREATE SET a.born = 1934,
 ON MATCH SET a.birthPlace = 'UK'
 RETURN a
 ```
+
+## More about Cypher
+
+### Cypher parameters
+
+Parameters begin with the `$` symbol
+
+```
+MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName
+RETURN m.released, m.title ORDER BY m.released DESC
+```
+To set them before calling the query:
+```
+:param actorName => 'Tom Hanks'
+```
+
+### Analyzing Cypher execution
+
+There are two Cypher keywords you can use to prefix a Cypher statement with to analyze a query:
+
+- `EXPLAIN` gives an estimate of the graph engine processing that will occur if that statement is executed. Does NOT execute the Cypher statement.
+- `PROFILE` gives also data about the performance of the query but the Cypher statement gets executed.
+
+```
+EXPLAIN MATCH (p:Person)-[:ACTED_IN]->(m:Movie)
+WHERE p.name = $actorName AND
+      m.released <  $year
+RETURN p.name, m.title, m.released
+```
+
+### Managing constraints and node keys
+
+Cypher can also be used to:
+- **uniqueness constraint**. Makes sure a certain property is unique.
+- **existence constraint**. Makes sure a certain property exists (is not null).
+- **node key**. Ensures that a group of values of a node's properties is unique.
+
+#### Ensuring that a property value for a node is unique
+
+Node of type *Movie* must have each a unique *title*:
+```
+CREATE CONSTRAINT ON (m:Movie) ASSERT m.title IS UNIQUE
+```
+
+#### Ensuring that properties exist
+
+All nodes of type *Movie* must have a *tagline* property:
+```
+CREATE CONSTRAINT ON (m:Movie) ASSERT exists(m.tagline)
+```
+All relationships of type *REVIEWED* must have a *rating* property:
+```
+CREATE CONSTRAINT ON ()-[rel:REVIEWED]-() ASSERT exists(rel.rating)
+
+```
+
+#### Retrieving constraints defined for the graph
+
+Get back a list of all the constraints you defined:
+```
+CALL db.constraints()
+```
+
+#### Dropping constraints
+
+Delete a constraint you defined:
+```
+DROP CONSTRAINT ON ()-[rel:REVIEWED]-() ASSERT exists(rel.rating)
+```
+
+#### Creating Node Keys
+
+In every *Person* node the properties *name* and *born* must be different:
+```
+CREATE CONSTRAINT ON (p:Person) ASSERT (p.name, p.born) IS NODE KEY
+```
+
+### Managing Indexes
+
+TODO - studying in progress :)
