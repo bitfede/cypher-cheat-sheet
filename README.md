@@ -562,4 +562,32 @@ CREATE CONSTRAINT ON (p:Person) ASSERT (p.name, p.born) IS NODE KEY
 
 ### Managing Indexes
 
-TODO - studying in progress :)
+#### Indexes for range searches
+
+```
+MATCH (m:Movie)
+WHERE 1990 < m.released < 2000
+SET m.videoFormat = 'DVD'
+```
+
+#### Creating indexes
+
+```
+CREATE INDEX ON :Movie(released)
+```
+
+#### Retrieving indexes
+
+```
+CALL db.indexes()
+```
+
+#### Dropping indexes
+
+```
+DROP INDEX ON :Movie(released, videoFormat)
+```
+
+## Importing Data
+
+TODO work in progress
