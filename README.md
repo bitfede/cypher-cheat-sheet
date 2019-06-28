@@ -590,4 +590,130 @@ DROP INDEX ON :Movie(released, videoFormat)
 
 ## Importing Data
 
-TODO work in progress
+In cypher you can:
+
+- Load data from a URL (http(s) or file).
+- Process data as a stream of records.
+- Create or update the graph with the data being loaded.
+- Use transactions during the load.
+- Transform and convert values from the load stream.
+- Load up to 10M nodes and relationships.
+
+Example datasets:
+
+**movies_to_load.csv**
+```
+id,title,country,year,summary
+1,Wall Street,USA,1987, Every dream has a price.
+2,The American President,USA,1995, Why can't the most powerful man in the world have the one thing he wants most?
+3,The Shawshank Redemption,USA,1994, Fear can hold you prisoner. Hope can set you free.
+```
+**persons_to_load.csv**
+```
+Id,name,birthyear
+1,Charlie Sheen, 1965
+2,Oliver Stone, 1946
+3,Michael Douglas, 1944
+4,Martin Sheen, 1940
+5,Morgan Freeman, 1937
+```
+**roles_to_load.csv**
+```
+personId,movieId,role
+1,1,Bud Fox
+4,1,Carl Fox
+3,1,Gordon Gekko
+4,2,A.J. MacInerney
+3,2,President Andrew Shepherd
+5,3,Ellis Boyd 'Red' Redding
+```
+
+### Importing normalized data
+
+```
+LOAD CSV WITH HEADERS FROM url-value //url-value can be a resource or a file on your system
+AS row        // row is a variable that is used to extract data
+```
+
+
+
+Counting data from the dataset, to get an idea of how much data will get loaded.
+```
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+RETURN count(*)
+```
+
+Visually inspect a little piece of data to see if it is exactly as you expected it.
+```
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+RETURN * LIMIT 1
+```
+
+Formatting the data before it's loaded (notice the use of *trim()* to clean up strings from accidental whitespaces).
+```
+LOAD CSV WITH HEADERS
+FROM 'http://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+RETURN line.id, line.title, toInteger(line.year), trim(line.summary)
+```
+
+This query specifically creates *Movie* nodes from the CSV data.
+```
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/movies_to_load.csv'
+AS line
+CREATE (movie:Movie { movieId: line.id, title: line.title, released: toInteger(line.year) , tagline: trim(line.summary)})
+```
+
+This query will create the *Person* nodes. Notice we are using `MERGE` to avoid duplicate data.
+```
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/persons_to_load.csv'
+AS line
+MERGE (actor:Person { personId: line.Id })
+ON CREATE SET actor.name = line.name,
+              actor.born = toInteger(trim(line.birthyear))
+```
+
+This query will create the *ACTED_IN* relationship.
+```
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/roles_to_load.csv'
+AS line
+MATCH (movie:Movie { movieId: line.movieId })
+MATCH (person:Person { personId: line.personId })
+CREATE (person)-[:ACTED_IN { roles: [line.role]}]->(movie)
+```
+
+### Importing denormalized data
+
+Dataset:
+
+**movie_actor_roles_to_load.csv**
+```
+title;released;summary;actor;birthyear;characters
+Back to the Future;1985;17 year old Marty McFly got home early last night. 30 years early.;Michael J. Fox;1961;Marty McFly
+Back to the Future;1985;17 year old Marty McFly got home early last night. 30 years early.;Christopher Lloyd;1938;Dr. Emmet Brown
+```
+
+To load this data you use these Cypher statements:
+```
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/intro-neo4j/movie_actor_roles_to_load.csv'
+AS line FIELDTERMINATOR ';'
+MERGE (movie:Movie { title: line.title })
+ON CREATE SET movie.released = toInteger(line.released),
+              movie.tagline = line.summary
+MERGE (actor:Person { name: line.actor })
+ON CREATE SET actor.born = toInteger(line.birthyear)
+MERGE (actor)-[r:ACTED_IN]->(movie)
+ON CREATE SET r.roles = split(line.characters,',')
+```
+
+### Importing a large dataset
+
+⚠️ Uploading more than 100,000 rows of data? It is recommended to prefix your `LOAD CSV` clause with a `PERIODIC COMMIT` hint. This allows the database to regularly commit the import transactions to avoid memory churn for large transaction-states. ⚠️
